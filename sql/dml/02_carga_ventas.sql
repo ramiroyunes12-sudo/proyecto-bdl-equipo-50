@@ -7,16 +7,16 @@ USE supermercado;
 GO
 
 INSERT INTO producto_proveedor (id_producto, id_proveedor, precio_compra, fecha_compra) VALUES
-(1, 1, 3500.00, '2026-08-10'), -- Yerba (venta 4850)
-(2, 2, 1100.00, '2026-08-11'), -- Arroz (venta 1650)
-(3, 3, 2200.00, '2026-08-12'), -- Gaseosa (venta 3200)
-(4, 3, 750.00,  '2026-08-12'), -- Agua (venta 1100)
-(5, 4, 950.00,  '2026-08-15'), -- Leche (venta 1350)
-(6, 4, 7200.00, '2026-08-15'), -- Queso (venta 9800)
-(7, 5, 5500.00, '2026-08-18'), -- Carne (venta 7500)
-(8, 6, 1500.00, '2026-08-20'), -- Tomate (venta 2400)
-(9, 7, 1900.00, '2026-08-22'), -- Pan lactal (venta 2900)
-(10, 8, 600.00, '2026-08-25'); -- Lavandina (venta 950)
+(1, 1, 3500.00, '2026-08-10'), -- Yerba -> Distribuidora del Litoral
+(2, 1, 1100.00, '2026-08-11'), -- Arroz -> Distribuidora del Litoral
+(3, 2, 2200.00, '2026-08-12'), -- Gaseosa -> Bebidas del Nordeste
+(4, 2, 750.00, '2026-08-12'), -- Agua -> Bebidas del Nordeste
+(5, 3, 950.00, '2026-08-15'), -- Leche -> Lácteos La Pampeana
+(6, 3, 7200.00, '2026-08-15'), -- Queso -> Lácteos La Pampeana
+(7, 4, 5500.00, '2026-08-18'), -- Carne -> Frigorífico Río Paraná
+(8, 5, 1500.00, '2026-08-20'), -- Tomate -> Mercado Frutihortícola Ctes.
+(9, 6, 1900.00, '2026-08-22'), -- Pan lactal -> Panificadora San Juan
+(10, 7, 600.00, '2026-08-25'); -- Lavandina -> Química Hogar
 
 INSERT INTO venta (fecha, id_cliente) VALUES
 ('2026-09-01 10:15:00', 1), -- Venta 1

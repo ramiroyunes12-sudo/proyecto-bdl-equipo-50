@@ -2,7 +2,7 @@
 -- Etapa IV Bloque 4: Consultas sobre clientes (CU10, CU11, CU12)
 -- Proyecto: Sistema de Gestión de Ventas en un Supermercado
 -- Comisión 3 Grupo 50
--- Autor: [Escribe tu Nombre y Apellido aquí]
+-- Autor: Hernán Ezequiel Vargas
 -- Motor: SQL Server (T-SQL)
 -- Bases de Datos I (2026)
 

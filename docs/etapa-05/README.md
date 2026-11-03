@@ -142,7 +142,87 @@ _A completar._
 
 ## Tema 3 — Triggers de auditoría
 
-_A completar._
+### 1. Definición y objetivo
+
+Un **trigger** (desencadenador) es código SQL guardado en la base que el motor ejecuta **solo**, sin que nadie lo llame, cuando ocurre un evento sobre una tabla: `INSERT`, `UPDATE` o `DELETE`.
+
+- Un trigger **`AFTER`** se ejecuta después de que la operación se hizo bien.
+- Un trigger **`INSTEAD OF`** se ejecuta **en lugar** de la operación, así que puede impedirla.
+- Dentro del trigger hay dos tablas virtuales: `deleted` tiene las filas como estaban antes, e `inserted` como quedaron. En un `UPDATE` están las dos; en un `DELETE`, solo `deleted`.
+
+El objetivo de un trigger de **auditoría** es dejar registrado automáticamente quién cambió qué y cuándo, sin depender de que la aplicación o el usuario lo anote.
+
+### 2. Ventajas y aplicaciones
+
+- **Trazabilidad:** responden preguntas como quién cambió un precio, cuándo se borró un producto y qué valor tenía antes.
+- **No se pueden saltear:** se ejecutan siempre, venga la modificación de donde venga (la aplicación, SSMS o un procedimiento).
+- **Protegen reglas del negocio** que una restricción común no cubre, como impedir el borrado de comprobantes fiscales.
+- **Costo:** cada operación sobre la tabla hace trabajo extra (una fila más en la auditoría), y la lógica queda "escondida" en la tabla, por eso conviene documentarlos.
+
+### 3. Implementación en SQL Server Express
+
+Script: `sql/tecnico/03_triggers.sql`.
+
+| Objeto | Tipo | Qué hace |
+|---|---|---|
+| `dbo.auditoria_producto` | Tabla auxiliar | Guarda la copia completa de la fila de `producto` antes del cambio, el precio y el stock nuevos (en los `UPDATE`), la operación, la fecha y hora (`SYSDATETIME()`) y el usuario de la base (`SUSER_SNAME()`) |
+| `dbo.trg_producto_auditoria_update` | Trigger `AFTER UPDATE` sobre `producto` | Por cada fila modificada inserta una fila en la auditoría con los valores anteriores y los nuevos |
+| `dbo.trg_producto_auditoria_delete` | Trigger `AFTER DELETE` sobre `producto` | Por cada fila borrada inserta una fila en la auditoría con todos sus valores |
+| `dbo.trg_factura_no_borrar` | Trigger `INSTEAD OF DELETE` sobre `factura` | Muestra el mensaje «Operación no permitida: las facturas emitidas no se pueden borrar.» (error 50010) y no borra nada |
+
+Decisiones:
+
+- La tabla de auditoría **no tiene FK a `producto`** a propósito: tiene que conservar los datos de un producto aunque se borre.
+- Los triggers trabajan con **conjuntos de filas** (`INSERT ... SELECT ... FROM deleted`), no con variables. Así, si un `UPDATE` cambia varios productos a la vez, se audita cada uno.
+- El bloqueo de borrado se hizo sobre `factura` porque una factura emitida es un comprobante fiscal (RN08). Además, `INSTEAD OF DELETE` no se puede crear en tablas que tienen una FK con `ON DELETE CASCADE` (`detalle_venta`, `venta_pago`), y `factura` no la tiene.
+- Las pruebas usan dos **productos de prueba**, para no cambiar los precios ni el stock de los productos reales que usan las consultas de la Etapa IV.
+- El script se puede ejecutar más de una vez: al principio apaga los triggers, borra los productos de prueba anteriores y los vuelve a encender.
+
+### 4. Caso concreto en el supermercado
+
+- Si un día la yerba aparece a otro precio, el encargado consulta `auditoria_producto` y ve el precio anterior, el nuevo, el usuario y la hora del cambio.
+- Si se da de baja un producto, queda guardado cómo estaba (precio, stock, categoría) aunque ya no exista en `producto`.
+- Los descuentos de stock también quedan registrados. Por ejemplo, cada venta que registra la transacción del tema 2 deja en la auditoría el stock anterior y el nuevo del producto vendido.
+- Nadie puede borrar una factura, ni por error ni a propósito, aunque tenga permisos para escribir el `DELETE`.
+
+### 5. Demostración y resultados
+
+**Triggers creados.** Los tres triggers aparecen activos en `sys.triggers`, con su tabla, su tipo y su evento.
+
+![Triggers creados](t3-triggers-creados.png)
+
+**Auditoría de modificaciones y borrados.** Se cargaron dos productos de prueba (café a 6200 y jugo a 1800) y se hicieron cuatro operaciones:
+
+| Operación | Filas auditadas | Qué quedó registrado |
+|---|---|---|
+| Cambio de precio del café a 6900 | 1 | 6200 → 6900 |
+| Aumento del 10 % a los dos productos en un solo `UPDATE` | 2 | Café 6900 → 7590 y jugo 1800 → 1980 |
+| Venta de 5 jugos | 1 | Stock 45 → 40 (el precio no cambia) |
+| Baja del jugo | 1 | `DELETE` con todos sus datos: precio 1980 y stock 40 |
+
+En total, 5 filas, cada una con la fecha y hora y el usuario `FABRIPC\ramir`. La fila del `DELETE` tiene `precio_nuevo` y `stock_nuevo` en `NULL` porque el producto ya no existe.
+
+![Tabla de auditoría](t3-auditoria-resultado.png)
+
+**Un borrado que falla no se audita.** Se intenta borrar la yerba (producto 1), que tiene proveedor y ventas. La FK `FK_producto_proveedor_producto` frena el `DELETE` (error 547) y, como el trigger es `AFTER`, no llega a ejecutarse: la auditoría tiene 5 filas antes y 5 después.
+
+![DELETE que falla](t3-delete-fallido.png)
+
+**Trigger que impide borrar facturas.** Se intenta borrar la factura 9 y después todas las facturas tipo B. Las dos veces aparece el error 50010 con el mensaje del trigger, la factura 9 sigue estando y la base sigue teniendo 9 facturas.
+
+![Mensajes del borrado de facturas](t3-factura-mensajes.png)
+
+![Facturas antes y después](t3-factura-resultados.png)
+
+El script se ejecutó dos veces seguidas de punta a punta, sin errores salvo los que se provocan a propósito.
+
+### Conclusiones
+
+- Los triggers de auditoría registran cada cambio sin que nadie tenga que acordarse de hacerlo: quedó guardado el valor anterior, el nuevo, el usuario y la hora de cada modificación y de cada borrado.
+- Hay que escribirlos para varias filas. El aumento del 10 % cambió dos productos con una sola sentencia y el trigger guardó las dos filas; con variables sueltas se habría perdido una.
+- Un trigger `AFTER` solo se ejecuta si la operación salió bien: si una FK frena el borrado, no queda ninguna fila en la auditoría, que es lo correcto porque no cambió nada.
+- El trigger `INSTEAD OF` sirve para reglas que las restricciones no cubren. Ni `CHECK` ni `FOREIGN KEY` pueden impedir que se borre una factura; el trigger sí, y además devuelve un mensaje claro.
+- La contra es que cada `UPDATE` o `DELETE` sobre `producto` hace una inserción más, y que la tabla de auditoría crece siempre. En un sistema real habría que definir cada cuánto se archiva.
 
 ---
 

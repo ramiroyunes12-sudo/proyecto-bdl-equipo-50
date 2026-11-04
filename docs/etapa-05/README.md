@@ -303,9 +303,120 @@ El script se ejecutó dos veces seguidas de punta a punta, sin errores salvo los
 
 ## Tema 4 — Seguridad: permisos de usuarios y roles
 
-_A completar. Usar `dbo.sp_cliente_insertar` del tema 1 para la prueba de permiso de ejecución._
+## Tema 4 — Seguridad: permisos de usuarios y roles (Víctor López Machado)
 
----
+### 1. Definición y objetivo
+
+La seguridad en SQL Server permite controlar quién puede acceder a una base de datos y qué operaciones puede realizar sobre sus objetos, como tablas y procedimientos almacenados.
+
+Para administrar estos accesos se utilizan tres elementos principales:
+
+- **Logins:** identifican a los usuarios que pueden autenticarse en el servidor SQL Server.
+- **Usuarios:** representan las identidades asociadas a una base de datos específica.
+- **Roles:** agrupan usuarios y permiten administrar sus permisos de manera centralizada.
+
+El objetivo de esta implementación es establecer diferentes niveles de acceso para los perfiles del supermercado, evitando que todos los usuarios puedan consultar, insertar o modificar libremente la información.
+
+Se aplica el principio de mínimo privilegio: cada usuario recibe únicamente los permisos necesarios para cumplir sus funciones.
+
+### 2. Ventajas y aplicaciones
+
+- **Control de acceso:** permite definir qué usuarios pueden consultar o modificar la información.
+- **Separación de responsabilidades:** diferencia las operaciones del personal de caja de las tareas de auditoría.
+- **Protección de datos:** impide modificaciones o inserciones no autorizadas.
+- **Seguridad mediante roles:** permite administrar permisos para grupos de usuarios sin configurarlos individualmente.
+- **Centralización de operaciones:** permite ejecutar procedimientos almacenados autorizados sin conceder acceso directo de escritura sobre las tablas.
+- **Mantenimiento:** facilita modificar los permisos de un perfil sin tener que cambiar la configuración de cada usuario.
+
+### 3. Implementación en SQL Server Express
+
+Script: `sql/tecnico/04_seguridad.sql`.
+
+Se crearon dos logins, dos usuarios de base de datos y dos roles personalizados para representar los perfiles de acceso del sistema.
+
+**Usuarios y roles creados:**
+
+| Login | Usuario de base de datos | Rol asignado |
+|---|---|---|
+| `login_operario` | `usuario_operario` | `rol_cajero` |
+| `login_auditor` | `usuario_auditor` | `rol_auditoria` |
+
+La asignación de usuarios a sus respectivos roles se realiza mediante `ALTER ROLE ... ADD MEMBER`.
+
+**Configuración de permisos:**
+
+| Rol | Objeto | Permisos | Finalidad |
+|---|---|---|---|
+| `rol_cajero` | `producto` | `SELECT` | Consultar productos. |
+| `rol_cajero` | `cliente` | `SELECT` | Consultar clientes. |
+| `rol_cajero` | `venta` | `SELECT`, `INSERT` | Consultar y registrar ventas. |
+| `rol_cajero` | Tabla de detalles de venta | `SELECT`, `INSERT` | Consultar y registrar los productos vendidos. |
+| `rol_cajero` | `cliente` | `DENY INSERT` | Impedir inserciones directas de clientes. |
+| `rol_cajero` | `dbo.sp_cliente_insertar` | `EXECUTE` | Permitir altas de clientes mediante el procedimiento almacenado. |
+| `rol_auditoria` | Tablas principales | `SELECT` | Consultar información sin permisos de escritura. |
+
+Para implementar estas restricciones se utilizaron los siguientes comandos:
+
+- `CREATE LOGIN` y `CREATE USER`: crean las identidades de acceso al servidor y a la base de datos.
+- `CREATE ROLE`: define los perfiles personalizados.
+- `ALTER ROLE ... ADD MEMBER`: incorpora usuarios a los roles.
+- `GRANT`: concede permisos sobre tablas y procedimientos almacenados.
+- `DENY`: establece una denegación explícita de permisos.
+- `EXECUTE AS USER`: permite simular la identidad de otro usuario para realizar pruebas.
+- `REVERT`: restaura el contexto de seguridad original.
+
+Una decisión importante fue utilizar el procedimiento `dbo.sp_cliente_insertar`, desarrollado en el Tema 1, para permitir el registro de clientes sin conceder al cajero permisos de inserción directa sobre la tabla `cliente`.
+
+Esto funciona mediante la cadena de propiedad (*ownership chaining*) de SQL Server: cuando el procedimiento y la tabla pertenecen al mismo propietario, el procedimiento puede realizar la operación sin que el usuario necesite tener directamente el permiso `INSERT` sobre la tabla.
+
+### 4. Caso concreto aplicado al sistema de ventas
+
+En el supermercado existen diferentes responsabilidades y no todos los empleados necesitan acceder a las mismas operaciones.
+
+- **Cajero u operario:** puede consultar los productos y clientes disponibles, registrar ventas y sus respectivos detalles. Cuando necesita dar de alta un cliente, debe utilizar `sp_cliente_insertar`, en lugar de ejecutar un `INSERT` directamente sobre la tabla.
+- **Auditor:** puede consultar productos, clientes, ventas, detalles de venta, proveedores y categorías para revisar la información comercial, pero no tiene permisos de escritura sobre esas tablas.
+
+De esta manera, se evita que un empleado pueda realizar operaciones ajenas a sus responsabilidades y se mantiene un mayor control sobre la información almacenada.
+
+### 5. Demostración y resultados
+
+La validación de seguridad se realiza mediante tres pruebas que simulan diferentes situaciones de acceso utilizando `EXECUTE AS USER` y bloques `TRY...CATCH`.
+
+**Prueba 1 — Bloqueo de inserción directa de clientes.**
+
+Se simula al usuario `usuario_operario` intentando insertar un registro directamente en la tabla `cliente`.
+
+La operación debe ser rechazada por la restricción `DENY INSERT` asignada al rol `rol_cajero`. El bloque `CATCH` captura el error y muestra el mensaje correspondiente.
+
+<img width="1022" height="352" alt="image" src="https://github.com/user-attachments/assets/8a07c9e8-0f6b-48ab-aeb8-adf593ccef9f" />
+
+
+**Prueba 2 — Inserción autorizada mediante procedimiento almacenado.**
+
+Se vuelve a simular al usuario `usuario_operario`, pero esta vez se ejecuta `dbo.sp_cliente_insertar` con los parámetros correspondientes al DNI, nombre, apellido, teléfono y email.
+
+La operación debe completarse correctamente gracias al permiso `GRANT EXECUTE` otorgado al rol `rol_cajero`, demostrando que el usuario puede registrar clientes mediante el mecanismo autorizado sin disponer de inserción directa sobre la tabla.
+
+<img width="905" height="373" alt="image" src="https://github.com/user-attachments/assets/9cc06454-d7a7-4666-8409-a4092500d545" />
+
+
+**Prueba 3 — Restricción de escritura para el auditor.**
+
+Se simula al usuario `usuario_auditor` intentando insertar un registro en la tabla `categoria`.
+
+La operación debe ser rechazada porque el rol `rol_auditoria` solamente cuenta con permisos de lectura (`SELECT`) y no dispone de autorización para insertar información.
+
+<img width="1193" height="351" alt="image" src="https://github.com/user-attachments/assets/dd5fa894-b684-4ac4-8fb3-69a6b9f112d6" />
+
+### Conclusiones
+
+- La implementación de usuarios y roles permite establecer diferentes niveles de acceso según las responsabilidades de cada perfil dentro del supermercado.
+- El principio de mínimo privilegio reduce los riesgos de modificaciones accidentales o accesos no autorizados.
+- La combinación de `GRANT` y `DENY` permite controlar de manera precisa las operaciones disponibles para cada rol.
+- La utilización de `GRANT EXECUTE` sobre un procedimiento almacenado permite centralizar las operaciones de inserción y mantener restringido el acceso directo a las tablas.
+- Las pruebas con `EXECUTE AS USER` permitieron definir escenarios para comprobar que las operaciones autorizadas se ejecuten correctamente y que las restringidas sean rechazadas.
+
+En conclusión, los mecanismos de seguridad implementados complementan los procedimientos almacenados del Tema 1 y permiten construir una base de datos más segura, organizada y controlada.
 
 ## Tema 5 — Optimización de consultas con índices
 

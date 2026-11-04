@@ -207,6 +207,14 @@ Si ocurre cualquier fallo o la validación de stock inicial no se cumple, el blo
 
 
 Al intentar registrar una venta con una cantidad que excede el stock disponible, la validación interna detecta el fallo y ejecuta automáticamente un ROLLBACK TRANSACTION. Esto revierte por completo todas las operaciones intermedias, garantizando que no se registre la venta, no se cree el detalle y el stock permanezca intacto sin dejar información parcial o inconsistente
+
+## Conclusiones
+
+- La implementación del manejo de transacciones asegura que operaciones críticas del negocio —como el registro de una venta y la modificación del stock— funcionen como una única unidad lógica indivisible, cumpliendo rigurosamente con las propiedades ACID del motor de base de datos.   
+
+- A través de las pruebas de ejecución se comprobó de forma empírica que, ante fallos de validación (como la falta de stock suficiente), el bloque de control revierte de manera automática todos los cambios parciales mediante un ROLLBACK, evitando estados inconsistentes o registros huérfanos en el sistema. 
+
+- Centralizar la lógica transaccional dentro de procedimientos almacenados robustece la aplicación, previniendo alteraciones accidentales del inventario y blindando la base de datos frente a errores operativos o de concurrencia.   
 ## Tema 3 — Triggers de auditoría
 
 ### 1. Definición y objetivo

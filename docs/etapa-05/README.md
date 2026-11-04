@@ -136,9 +136,42 @@ Tomando las 9 rondas, la mediana fue de **376 ms para el `INSERT` directo y 729 
 
 ## Tema 2 — Manejo de transacciones
 
-_A completar._
+## 1. Definición Y Objetivo
 
----
+Una transacción es un conjunto de operaciones SQL que se ejecutan como una única 
+unidad lógica de trabajo. El objetivo principal es garantizar la atomicidad, 
+consistencia, aislamiento y durabilidad (propiedades ACID), asegurando que 
+si una operación intermedia falla, todas las anteriores se desechen mediante un 
+`ROLLBACK`, evitando información incompleta o estados inconsistentes.
+
+## 2. Ventajas y Apliccaciónes
+
+- Garantiza la integridad referencial y de negocio al procesar operaciones complejas.
+- Evita registros parciales (por ejemplo, guardar una venta sin descontar el stock 
+  o generar un detalle sin cabecera).
+- Aplicación crítica: Procesamiento de ventas comerciales, control de stock en 
+  tiempo real y gestión de pagos.
+
+## 3. IMPLEMENTACIÓN EN SQL SERVER EXPRESS
+
+En SQL Server Express se implementa mediante bloques de control explícitos:
+- `BEGIN TRANSACTION`: Inicia formalmente la unidad de trabajo.
+- `COMMIT TRANSACTION`: Confirma y persiste los cambios si todo es exitoso.
+- `ROLLBACK TRANSACTION`: Revierte todos los cambios si ocurre un error o validación fallida.
+- Estructura `BEGIN TRY ... BEGIN CATCH` para la captura centralizada de errores.
+
+## 4. CASO CONCRETO APLICADO AL SISTEMA DE VENTAS
+
+Escenario: Un cliente realiza la compra de productos en el supermercado. 
+La transacción debe ejecutar de forma atómica lo siguiente:
+1. Validar que el producto tenga stock suficiente.
+2. Registrar la cabecera de la venta en la tabla `venta`.
+3. Registrar el ítem comercial en la tabla `detalle_venta`.
+4. Descontar las unidades adquiridas del stock en la tabla `producto.]
+Si el stock es insuficiente o ocurre un fallo, se cancela y revierte toda la operación.
+
+## 5. SCRIPT DE DEMOSTRACIÓN Y CASOS DE PRUEBA
+
 
 ## Tema 3 — Triggers de auditoría
 

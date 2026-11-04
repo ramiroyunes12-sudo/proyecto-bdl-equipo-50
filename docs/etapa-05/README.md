@@ -154,11 +154,18 @@ si una operación intermedia falla, todas las anteriores se desechen mediante un
 
 ## 3. IMPLEMENTACIÓN EN SQL SERVER EXPRESS
 
-En SQL Server Express se implementa mediante bloques de control explícitos:
-- `BEGIN TRANSACTION`: Inicia formalmente la unidad de trabajo.
-- `COMMIT TRANSACTION`: Confirma y persiste los cambios si todo es exitoso.
-- `ROLLBACK TRANSACTION`: Revierte todos los cambios si ocurre un error o validación fallida.
-- Estructura `BEGIN TRY ... BEGIN CATCH` para la captura centralizada de errores.
+Script: `sql/tecnico/02_transacciones.sql`.
+
+| Objeto | Tipo | Qué hace |
+|---|---|---|
+| `BEGIN TRANSACTION / SET XACT_ABORT ON` | Inicio de Transacción | Da inicio formal a la unidad lógica de trabajo y configura el comportamiento del motor ante errores graves. |
+| `SELECT ... WITH (UPDLOCK)` | Consulta con Bloqueo | Consulta el stock y el precio actual del producto aplicando un bloqueo de actualización para proteger la concurrencia. |
+| `INSERT INTO venta` | Operación de Inserción (Cabecera) | Registra la cabecera de la venta comercial vinculada al cliente y genera el identificador único. |
+| `INSERT INTO detalle_venta` | Operación de Inserción (Detalle) | Registra los ítems específicos de la venta, guardando la cantidad y el precio histórico del producto. |
+| `UPDATE producto` | Operación de Actualización | Descuenta de forma automática las unidades adquiridas del stock disponible del producto. |
+| `COMMIT TRANSACTION` | Confirmación (Commit) | Guarda y persiste de manera definitiva todos los cambios en la base de datos al completarse con éxito |
+| `ROLLBACK TRANSACTION` | Reversión (Rollback) |Deshace todos los cambios realizados si el stock es insuficiente o surge un error, garantizando la atomicidad. |
+
 
 ## 4. CASO CONCRETO APLICADO AL SISTEMA DE VENTAS
 

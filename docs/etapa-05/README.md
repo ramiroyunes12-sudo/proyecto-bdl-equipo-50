@@ -177,9 +177,36 @@ La transacción debe ejecutar de forma atómica lo siguiente:
 4. Descontar las unidades adquiridas del stock en la tabla `producto.]
 Si el stock es insuficiente o ocurre un fallo, se cancela y revierte toda la operación.
 
-## 5. SCRIPT DE DEMOSTRACIÓN Y CASOS DE PRUEBA
+## 5. SCRIPT DE DEMOSTRACIÓN Y CASOS DE PRUEBA.
+
+La transacción ejecuta de forma atómica el registro de la cabecera de la venta, la inserción del detalle comercial y el descuento correspondiente en el inventario, confirmando y persistiendo todos los cambios de manera exitosa mediante un COMMIT TRANSACTION
 
 
+<img width="810" height="381" alt="image" src="https://github.com/user-attachments/assets/65ecabeb-f259-4d59-8314-839faa1ab5c2" />
+Consulta el inventario actual aplicando un bloqueo de lectura segura y evalúa si la cantidad solicitada supera lo disponible. Si no hay stock, genera un error y aborta el flujo antes de modificar ninguna tabla.
+
+
+<img width="792" height="132" alt="image" src="https://github.com/user-attachments/assets/58869399-99a2-4957-b584-46586f0f9fe7" />
+Inserta el registro principal en la tabla venta para dar de alta la operación comercial y captura su identificador único para vincular los ítems
+
+
+<img width="732" height="71" alt="image" src="https://github.com/user-attachments/assets/f7f6a6ad-2956-4ac0-9994-3e6012f685f1" />
+Inserta los productos específicos que componen la venta en la tabla detalle_venta, registrando la cantidad y el precio histórico del momento.
+
+
+<img width="768" height="84" alt="image" src="https://github.com/user-attachments/assets/6e68c611-adf7-4b15-a453-1352cd1c839f" />
+Resta de forma automática las unidades adquiridas del inventario general en la tabla
+
+
+<img width="776" height="86" alt="image" src="https://github.com/user-attachments/assets/04944c8f-37e9-4a16-a48e-8519bb884414" />
+Si las operaciones anteriores se completan con éxito, este bloque hace permanentes los cambios en la base de datos.
+
+
+<img width="782" height="252" alt="image" src="https://github.com/user-attachments/assets/a4c094e0-3868-49e4-8b8a-018f13df9739" />
+Si ocurre cualquier fallo o la validación de stock inicial no se cumple, el bloque CATCH intercepta el error y ejecuta el ROLLBACK para deshacer absolutamente todo lo hecho en los pasos 2, 3 y 4, garantizando que no queden datos parciales.
+
+
+Al intentar registrar una venta con una cantidad que excede el stock disponible, la validación interna detecta el fallo y ejecuta automáticamente un ROLLBACK TRANSACTION. Esto revierte por completo todas las operaciones intermedias, garantizando que no se registre la venta, no se cree el detalle y el stock permanezca intacto sin dejar información parcial o inconsistente
 ## Tema 3 — Triggers de auditoría
 
 ### 1. Definición y objetivo

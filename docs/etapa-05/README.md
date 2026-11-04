@@ -418,6 +418,15 @@ La operación debe ser rechazada porque el rol `rol_auditoria` solamente cuenta 
 
 En conclusión, los mecanismos de seguridad implementados complementan los procedimientos almacenados del Tema 1 y permiten construir una base de datos más segura, organizada y controlada.
 
-## Tema 5 — Optimización de consultas con índices
+## Tema 5: Índices (Carga de 1 millón de filas)
+**Responsable:** Vargas, Hernan Ezequiel
 
-_A completar._
+Se generó un entorno de pruebas insertando 1.000.000 de registros en la tabla `historico_precios` mediante el uso de Common Table Expressions (CTEs) para garantizar una inserción masiva en segundos, evitando bucles `WHILE` ineficientes.
+
+Se diseñó una consulta de agrupación por fecha y se midió su rendimiento utilizando `SET STATISTICS TIME ON`. Posteriormente, se aplicó un índice `NONCLUSTERED` sobre la columna de filtrado (`fecha_registro`) incluyendo las columnas de proyección, logrando una reducción drástica en los tiempos de CPU y lecturas lógicas de la tabla.
+
+**Consulta original (Sin índice):**
+![Sin Índice](t5-antes-indice.png)
+
+**Consulta optimizada (Con índice):**
+![Con Índice](t5-despues-indice.png)
